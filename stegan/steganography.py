@@ -17,7 +17,7 @@ class Steganography:
     __SUPPORTED_MODE = ["RGB", "RGBA", "L", "P"]
 
     # Inserted payload
-    # 2 bytes magic header: 0xf00d
+    # 2 bytes magic header: 0x1337
     # 2 bytes filename size: n
     # 4 bytes content size: m
     # n bytes filename
@@ -129,17 +129,18 @@ class Steganography:
         seq = [i for i in range(pixels_count)]
         random.shuffle(seq)
 
-        # TODO: read until len_content only
         for pos in seq:
+            if len(bin_payload) >= 64:
+                break
             temp_pixel = pixel_data[pos]
 
             if type(temp_pixel) == tuple:
                 for j in range(len(temp_pixel)):
-                    bin_payload += BitArray(int=temp_pixel[j], length=9)[-lsb:].bin
+                    bin_payload += BitArray(int=temp_pixel[j], length=9).bin[-lsb:]
             else:
-                bin_payload += BitArray(int=temp_pixel, length=9)[-lsb:].bin
+                bin_payload += BitArray(int=temp_pixel, length=9).bin[-lsb:]
 
-        bin_payload = bin_payload[:len(bin_payload) // 8 * 8]
+        bin_payload = bin_payload[:64]
 
         payload = BitArray(bin=bin_payload).bytes
         header, len_filename, len_content = unpack("HHI", payload[:8])
@@ -147,6 +148,20 @@ class Steganography:
         if header != 0x1337:
             return None, None
 
+        bin_payload = ""
+        for pos in seq:
+            if len(bin_payload) >= (len_content + len_filename + 8) * 8:
+                break
+            temp_pixel = pixel_data[pos]
+
+            if type(temp_pixel) == tuple:
+                for j in range(len(temp_pixel)):
+                    bin_payload += BitArray(int=temp_pixel[j], length=9).bin[-lsb:]
+            else:
+                bin_payload += BitArray(int=temp_pixel, length=9).bin[-lsb:]
+
+        bin_payload = bin_payload[:len(bin_payload) // 8 * 8]
+        payload = BitArray(bin=bin_payload).bytes
         filename = payload[8:8+len_filename]
         content = payload[8+len_filename:8+len_filename+len_content]
 
