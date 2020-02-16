@@ -4,6 +4,8 @@ from tkinter import N, W, E, S, HORIZONTAL, BOTH, LEFT, END
 
 from PIL import Image, ImageTk
 
+from stegan import Steganography
+
 class App(tk.Frame):
     def __init__(self, master=None):
         super().__init__(master)
@@ -24,6 +26,7 @@ class App(tk.Frame):
         self.bitlen = tk.IntVar()
         self.bitlen.trace("w", self.on_bitlen_write)
         self.mode = tk.StringVar(value="encode")
+        self.mode.trace("w", self.on_mode_write)
 
         self.original_image = None
         self.processed_image = None
@@ -46,9 +49,9 @@ class App(tk.Frame):
         self.image_label.grid(row=1, column=0, columnspan=2, sticky=N+E+W+S)
 
         # Show Image Result Checkbox
-        show_result_checkbox = tk.Checkbutton(
+        self.show_result_checkbox = tk.Checkbutton(
             self, text="Show Result", onvalue=True, offvalue=False, variable=self.show_result)
-        show_result_checkbox.grid(row=2, column=0, sticky=W)
+        self.show_result_checkbox.grid(row=2, column=0, sticky=W)
 
         # Message to hide
         # self.message_entry = tk.Text(self, height=5)
@@ -86,16 +89,6 @@ class App(tk.Frame):
         filename = askopenfilename(filetypes=[("Image","*.png"), ("Image","*.bmp")])
         self.src_filename.set(filename)
     
-    def on_src_filename_write(self, *args):
-        filename = self.src_filename.get()
-        print(f"src_filename change {filename=}")
-
-        self.original_image = Image.open(filename)
-        self.processed_image = self.original_image.copy()
-
-        self.reset_options_state()
-        self.update_stats_label()
-    
     def update_stats_label(self, *args):
         img_w, img_h = self.original_image.size
         avl_bit = img_w * img_h * self.bitlen.get()
@@ -116,11 +109,53 @@ class App(tk.Frame):
 
         self.stats_label["text"] = result_text
     
+    def update_image_shown(self):
+        mode = self.mode.get()
+        if mode == "encode":
+            new_image = self.encode_image()
+            self.show_image_on_label(new_image)
+        else:
+            pass
+    
+    def encode_image(self):
+        message = self.message.get()
+        password = self.password.get()
+        bitlen = self.bitlen.get()
+
+        print(f"encoding {message=} {password=}")
+
+        # TODO: this
+        result = self.original_image
+        return result
+    
+    def decode_image(self):
+        password = self.password.get()
+        bitlen = self.bitlen.get()
+
+        print(f"decode {password=} {bitlen=}")
+
+        result = "messeji desu"
+        return result
+
+    def show_image_on_label(self, image):
+        self.current_imagetk = ImageTk.PhotoImage(image)
+        self.image_label["image"] = self.current_imagetk
+    
     def reset_options_state(self):
         self.show_result.set(False)
         self.on_show_result_write()
         self.bitlen.set(1)
         self.mode.set("encode")
+
+    def on_src_filename_write(self, *args):
+        filename = self.src_filename.get()
+        print(f"src_filename change {filename=}")
+
+        self.original_image = Image.open(filename)
+        self.processed_image = self.original_image.copy()
+
+        self.reset_options_state()
+        self.update_stats_label()
     
     def on_show_result_write(self, *args):
         self.image_label["image"] = None
@@ -130,15 +165,25 @@ class App(tk.Frame):
             image = self.processed_image
         self.show_image_on_label(image)
     
+    def on_mode_write(self, *args):
+        mode = self.mode.get()
+        if mode == "encode":
+            self.message_entry["state"] = "normal"
+            self.show_result_checkbox["state"] = "normal"
+            self.show_result.set(False)
+        else:
+            self.message_entry["state"] = "disabled"
+            self.show_result_checkbox["state"] = "disabled"
+            self.show_result.set(True)
+    
     def on_bitlen_write(self, *args):
         self.update_stats_label()
-
-    def show_image_on_label(self, image):
-        self.current_imagetk = ImageTk.PhotoImage(image)
-        self.image_label["image"] = self.current_imagetk
+        self.update_image_shown()
     
     def on_message_write(self, *args):
         self.update_stats_label()
+        self.update_image_shown()
     
     def on_password_write(self, *args):
         self.update_stats_label()
+        self.update_image_shown()
