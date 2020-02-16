@@ -1,2 +1,9 @@
 __pycache__/
 window-crit.sh
+*-stego.bmp
+*-stego.png
+
+.idea
+__pycache__
+
+*.py[cod]
