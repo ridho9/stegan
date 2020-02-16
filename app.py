@@ -1,6 +1,6 @@
 import tkinter as tk
-from tkinter.filedialog import askopenfilename
-from tkinter import N, W, E, S, HORIZONTAL, BOTH, LEFT, END
+from tkinter.filedialog import askopenfilename, asksaveasfilename
+from tkinter import N, W, E, S, HORIZONTAL, BOTH, LEFT, END, NORMAL, DISABLED
 
 from PIL import Image, ImageTk
 
@@ -21,6 +21,7 @@ class App(tk.Frame):
         self.show_result.trace("w", self.on_show_result_write)
         self.message = tk.StringVar()
         self.message.trace("w", self.on_message_write)
+        self.msg_filename = tk.StringVar()
         self.password = tk.StringVar()
         self.password.trace("w", self.on_password_write)
         self.bitlen = tk.IntVar()
@@ -56,9 +57,12 @@ class App(tk.Frame):
         # Message to hide
         # self.message_entry = tk.Text(self, height=5)
         # self.message_entry.grid(row=3, column=0, columnspan=2, sticky=W+E)
-        tk.Label(self, text="Message: ").grid(row=3, column=0, sticky=W)
-        self.message_entry = tk.Entry(self, textvariable=self.message)
-        self.message_entry.grid(row=3, column=1, sticky=W+E)
+        # tk.Label(self, text="Message: ").grid(row=3, column=0, sticky=W)
+        # self.message_entry = tk.Entry(self, textvariable=self.message)
+        # self.message_entry.grid(row=3, column=1, sticky=W+E)
+        self.message_button = tk.Button(self, text="Message file", command=self.select_msg_file)
+        self.message_button.grid(row=3, column=0, sticky=W)
+        tk.Label(self, textvariable=self.msg_filename).grid(row=3, column=1, sticky=W+E)
 
         # Password entry
         tk.Label(self, text="Password: ").grid(row=4, column=0, sticky=W)
@@ -82,14 +86,27 @@ class App(tk.Frame):
         ).grid(row=6, column=1, sticky=W)
 
         # Save button
-        save_button = tk.Button(self, text="Save")
-        save_button.grid(row=7, column=0, columnspan=2, sticky=E)
+        self.save_button = tk.Button(self, text="Save", command=self.save_file)
+        self.save_button.grid(row=7, column=0, columnspan=2, sticky=E)
 
     def select_file(self):
         filename = askopenfilename(filetypes=[("Image","*.png"), ("Image","*.bmp")])
         self.src_filename.set(filename)
     
+    def select_msg_file(self):
+        if self.mode.get() == "decode": return
+        filename = askopenfilename(filetypes=[("Text","*.txt")])
+        self.msg_filename.set(filename)
+        if filename == '': return
+        with open(filename, "r") as f:
+            content = f.read()
+            self.message.set(content)
+    
     def update_stats_label(self, *args):
+        if not self.is_file_set():
+            self.stats_label["text"] = "Stats about images might be here later"
+            return
+
         img_w, img_h = self.original_image.size
         avl_bit = img_w * img_h * self.bitlen.get()
         avl_byte = avl_bit // 8
@@ -111,33 +128,54 @@ class App(tk.Frame):
     
     def update_image_shown(self):
         mode = self.mode.get()
+        print(f"update img shown {mode=}")
         if mode == "encode":
-            new_image = self.encode_image()
-            self.show_image_on_label(new_image)
+            new_image = self.encode_image() or self.original_image
+            self.processed_image = new_image
+            print(f"update_image {self.original_image=} {self.processed_image=}")
         else:
-            pass
+            message = self.decode_image()
+            print(f"decode {message=}")
+            if message is not None:
+                self.message.set(message.decode())
+                self.msg_filename.set(f"{message[:32]}...")
+                self.save_button["state"] = NORMAL
+            else:
+                self.message.set("")
+                self.msg_filename.set("NO MESSAGE FOUND")
+                self.save_button["state"] = DISABLED
     
     def encode_image(self):
-        message = self.message.get()
+        if not self.is_file_set(): return
+
+        src_filename = self.src_filename.get()
+        msg_filename = self.msg_filename.get()
+        message = self.message.get().encode()
         password = self.password.get()
         bitlen = self.bitlen.get()
+        
+        s = Steganography(src_filename)
+        s.set_stego_payload(msg_filename, message, password, bitlen)
 
-        print(f"encoding {message=} {password=}")
+        print(f"encoding {src_filename=} {msg_filename=} {password=} {bitlen=}")
 
-        # TODO: this
-        result = self.original_image
+        result = s.get_stego_image()
         return result
     
     def decode_image(self):
+        src_filename = self.src_filename.get()
         password = self.password.get()
         bitlen = self.bitlen.get()
 
+        s = Steganography(src_filename)
         print(f"decode {password=} {bitlen=}")
 
-        result = "messeji desu"
+        msg_filename, result = s.get_stego_payload(password, bitlen)
+        # result = result.decode()
         return result
 
     def show_image_on_label(self, image):
+        print(f"show image {image=}")
         self.current_imagetk = ImageTk.PhotoImage(image)
         self.image_label["image"] = self.current_imagetk
     
@@ -146,35 +184,77 @@ class App(tk.Frame):
         self.on_show_result_write()
         self.bitlen.set(1)
         self.mode.set("encode")
+    
+    def save_file(self):
+        if not self.is_file_set(): return
+
+        mode = self.mode.get()
+        src_filename = self.src_filename.get().split("/")[-1]
+        name, ext = src_filename.split(".")
+        if mode == "encode":
+            initialfile = f"{name}-stego.{ext}"
+        else:
+            initialfile = f"{name}.txt"
+
+        dest_filename = asksaveasfilename(initialfile=initialfile)
+        print(f"save {dest_filename=}")
+
+        if dest_filename == "": return
+
+        with open(dest_filename, "wb") as f:
+            if mode == "encode":
+                self.processed_image.save(f)
+            else:
+                f.write(self.message.get().encode())
+    
+    def is_file_set(self):
+        src_filename = self.src_filename.get()
+        msg_filename = self.msg_filename.get()
+        if src_filename == "" or msg_filename == "":
+            return False
+        return True
 
     def on_src_filename_write(self, *args):
         filename = self.src_filename.get()
         print(f"src_filename change {filename=}")
+        if filename == '': return
 
         self.original_image = Image.open(filename)
-        self.processed_image = self.original_image.copy()
+        self.processed_image = Image.open(filename)
+        
+        print(f"src fn w {self.original_image=} {self.processed_image=}")
 
         self.reset_options_state()
         self.update_stats_label()
     
     def on_show_result_write(self, *args):
         self.image_label["image"] = None
-        if self.show_result.get():
-            image = self.original_image
-        else:
+        show_result = self.show_result.get()
+        if show_result:
             image = self.processed_image
+        else:
+            image = self.original_image
+        print(f"show result write {show_result=} {image=}")
         self.show_image_on_label(image)
     
     def on_mode_write(self, *args):
         mode = self.mode.get()
+        self.save_button["state"] = NORMAL
         if mode == "encode":
-            self.message_entry["state"] = "normal"
-            self.show_result_checkbox["state"] = "normal"
+            # self.message_entry["state"] = "normal"
+            self.message_button["state"] = NORMAL
+            self.msg_filename.set("")
+            self.message.set("")
+            self.show_result_checkbox["state"] = NORMAL
             self.show_result.set(False)
         else:
-            self.message_entry["state"] = "disabled"
-            self.show_result_checkbox["state"] = "disabled"
+            # self.message_entry["state"] = "disabled"
+            self.message_button["state"] = "disabled"
+            self.msg_filename.set("Decoding message")
+            self.show_result_checkbox["state"] = NORMAL
             self.show_result.set(True)
+        self.update_image_shown()
+        self.update_stats_label()
     
     def on_bitlen_write(self, *args):
         self.update_stats_label()
@@ -182,7 +262,8 @@ class App(tk.Frame):
     
     def on_message_write(self, *args):
         self.update_stats_label()
-        self.update_image_shown()
+        if self.mode.get() == "encode":
+            self.update_image_shown()
     
     def on_password_write(self, *args):
         self.update_stats_label()
