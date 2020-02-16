@@ -1,0 +1,7 @@
+*-stego.bmp
+*-stego.png
+
+.idea
+__pycache__
+
+*.py[cod]

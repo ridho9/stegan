@@ -34,7 +34,10 @@ class App(tk.Frame):
         src_filename_label.grid(row=0, column=1, sticky=E+N)
 
         # Image widget row 1
-        image_label = tk.Label(self, text="Image might be here later", relief="sunken")
+        img = Image.open("../a.png")
+        photo = ImageTk.PhotoImage(img)
+        image_label = tk.Label(self, image=photo, relief="sunken")
+        image_label.image = photo
         image_label.grid(row=1, column=0, columnspan=2, sticky=N+E+W+S)
 
         # Show Image Result Checkbox
@@ -74,4 +77,4 @@ class App(tk.Frame):
     def select_file(self):
         print("Select file")
         self.src_filename.set(askopenfilename())
-        print(f"{self.src_filename.get()=}")
+        print(f"{self.src_filename.get()}")
