@@ -138,8 +138,11 @@ class App(tk.Frame):
             new_image = self.encode_image() or self.original_image
             self.processed_image = new_image
             print(f"update_image {self.original_image=} {self.processed_image=}")
-            psnr_res = psnr(self.original_image, self.processed_image)
-            self.psnr.set(f"{psnr_res}")
+            if self.processed_image == self.original_image:
+                self.psnr.set(f"Image is same")
+            else:
+                psnr_res = psnr(self.original_image, self.processed_image)
+                self.psnr.set(f"{psnr_res}")
         else:
             message = self.decode_image()
             print(f"decode {message=}")
