@@ -5,6 +5,7 @@ from tkinter import N, W, E, S, HORIZONTAL, BOTH, LEFT, END, NORMAL, DISABLED
 from PIL import Image, ImageTk
 
 from stegan import Steganography
+from stegan.psnr import psnr
 
 class App(tk.Frame):
     def __init__(self, master=None):
@@ -28,6 +29,7 @@ class App(tk.Frame):
         self.bitlen.trace("w", self.on_bitlen_write)
         self.mode = tk.StringVar(value="encode")
         self.mode.trace("w", self.on_mode_write)
+        self.psnr = tk.StringVar()
 
         self.original_image = None
         self.processed_image = None
@@ -77,17 +79,20 @@ class App(tk.Frame):
         self.stats_label = tk.Label(self, text="Stats about images might be here later", justify=LEFT)
         self.stats_label.grid(row=5, column=1, sticky=W)
 
+        tk.Label(self, text="PSNR").grid(row=6, column=0, sticky=W)
+        tk.Label(self, textvariable=self.psnr).grid(row=6, column=1, sticky=W)
+
         # Radio button for selecting encode/decode
         tk.Radiobutton(
             self, text="Encode", variable=self.mode, value="encode"
-        ).grid(row=6, column=0, sticky=W)
+        ).grid(row=7, column=0, sticky=W)
         tk.Radiobutton(
             self, text="Decode", variable=self.mode, value="decode"
-        ).grid(row=6, column=1, sticky=W)
+        ).grid(row=7, column=1, sticky=W)
 
         # Save button
         self.save_button = tk.Button(self, text="Save", command=self.save_file)
-        self.save_button.grid(row=7, column=0, columnspan=2, sticky=E)
+        self.save_button.grid(row=8, column=0, columnspan=2, sticky=E)
 
     def select_file(self):
         filename = askopenfilename(filetypes=[("Image","*.png"), ("Image","*.bmp")])
@@ -133,6 +138,8 @@ class App(tk.Frame):
             new_image = self.encode_image() or self.original_image
             self.processed_image = new_image
             print(f"update_image {self.original_image=} {self.processed_image=}")
+            psnr_res = psnr(self.original_image, self.processed_image)
+            self.psnr.set(f"{psnr_res}")
         else:
             message = self.decode_image()
             print(f"decode {message=}")
@@ -240,6 +247,7 @@ class App(tk.Frame):
     def on_mode_write(self, *args):
         mode = self.mode.get()
         self.save_button["state"] = NORMAL
+        self.psnr.set("")
         if mode == "encode":
             # self.message_entry["state"] = "normal"
             self.message_button["state"] = NORMAL

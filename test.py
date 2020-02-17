@@ -1,4 +1,6 @@
 from stegan import Steganography
+from stegan.psnr import mse, psnr
+from PIL import Image
 
 
 def test1():
@@ -46,8 +48,15 @@ def test3():
     with open(f"images/{d[0].decode()}", "wb") as f:
         f.write(d[1])
 
+def psnrtest():
+    img1 = Image.open("images/arch.png")
+    img2 = Image.open("arch-stego.png")
+    mse_res = mse(img1, img2)
+    psnr_res = psnr(img1, img2)
+    print(f"{mse_res=} {psnr_res=}")
 
 if __name__ == '__main__':
-    test1()
-    test2()
-    test3()
+    # test1()
+    # test2()
+    # test3()
+    psnrtest()
