@@ -61,6 +61,9 @@ class Steganography:
 
         img = Image.new(self._base_image.mode, self._base_image.size)
         img.putdata(self._payloaded_pixel)
+
+        if img.mode == "P":
+            img.putpalette(self._base_image.getpalette())
         return img
 
     def get_base_image(self) -> Image:
@@ -170,5 +173,3 @@ class Steganography:
             content = vigenere.decrypt(content)
 
         return filename, content
-
-    # TODO: compute PSNR
